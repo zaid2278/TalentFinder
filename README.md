@@ -58,6 +58,31 @@ npm run dev
 
 UI: `http://localhost:5173` (proxies `/api` and `/uploads` to the backend).
 
+## Optional: Nginx rate limiting layer
+
+Nginx runs as a **separate** reverse proxy on `http://localhost:8080`, alongside the normal dev setup on ports 5173/4000. It does **not** replace that flow — the Vite app still talks to Express on 4000 through the Vite proxy exactly as documented above.
+
+Start it with the same Compose command (Nginx is another service in `docker-compose.yml`):
+
+```bash
+docker compose up -d
+```
+
+Backend must still be running on the host (`cd backend && npm run dev`) so Nginx can reach `host.docker.internal:4000`.
+
+Demo rate limiting with a burst of curls against the proxied API:
+
+```bash
+for i in $(seq 1 40); do
+  code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/tenants)
+  echo "request $i -> $code"
+done
+```
+
+The first requests should return `200`. Once the limit (`10r/s` with `burst=20`) is exceeded, later requests return Nginx’s default rate-limit response (typically `503`).
+
+In a real production setup, all traffic would route through Nginx rather than hitting the API directly; this demo layer shows that pattern without changing how the rest of the app is developed and tested day to day.
+
 ## Seed data
 
 Idempotent seed creates tenants **LinkedIn**, **Monster**, and **Naukri**, ~30 shared skills, and per tenant 15 candidates + 5 job orders with overlapping skill sets so match rankings are meaningful on first run.
@@ -90,6 +115,8 @@ Idempotent seed creates tenants **LinkedIn**, **Monster**, and **Naukri**, ~30 s
 
 ```
 ├── docker-compose.yml
+├── nginx/
+│   └── default.conf
 ├── backend/
 │   ├── prisma/
 │   ├── src/
