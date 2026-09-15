@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, type Skill } from '../api/client';
+import { BackButton } from '../components/BackButton';
 import { SkillChips } from '../components/ListPage';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
+  clearCurrent,
   deleteJobOrder,
   fetchJobOrder,
   fetchMatches,
@@ -19,6 +21,7 @@ export function JobOrderDetailsPage() {
   const tenantId = useAppSelector((s) => s.tenants.selectedTenantId);
   const job = useAppSelector((s) => s.jobOrders.current);
   const matches = useAppSelector((s) => s.jobOrders.matches);
+  const matchesStatus = useAppSelector((s) => s.jobOrders.matchesStatus);
   const [editing, setEditing] = useState(searchParams.get('edit') === '1');
   const [skills, setSkills] = useState<Skill[]>([]);
   const [jobTitle, setJobTitle] = useState('');
@@ -33,6 +36,7 @@ export function JobOrderDetailsPage() {
 
   useEffect(() => {
     if (!tenantId || !id) return;
+    dispatch(clearCurrent());
     dispatch(fetchJobOrder({ tenantId, id }));
     dispatch(fetchMatches({ tenantId, id }));
   }, [dispatch, tenantId, id]);
@@ -103,15 +107,10 @@ export function JobOrderDetailsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 animate-[fadeIn_0.35s_ease]">
+      <BackButton to="/job-orders" label="Back to Job Orders" />
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-muted">
-            <Link to="/job-orders" className="hover:text-sea">
-              Job Orders
-            </Link>{' '}
-            / Details
-          </p>
-          <h1 className="mt-1 font-display text-3xl tracking-tight">{job.jobTitle}</h1>
+          <h1 className="font-display text-3xl tracking-tight">{job.jobTitle}</h1>
         </div>
         <div className="flex gap-2">
           <button
@@ -258,8 +257,17 @@ export function JobOrderDetailsPage() {
       <section className="rounded-2xl border border-line bg-white/80 p-6">
         <h2 className="font-display text-xl">Matching Candidates</h2>
         <p className="mt-1 text-sm text-muted">Ranked by exact skill overlap within this tenant.</p>
-        {matches.length === 0 ? (
-          <p className="mt-4 text-sm text-muted">No matching candidates.</p>
+        {matchesStatus === 'loading' || matchesStatus === 'idle' ? (
+          <p className="mt-4 text-sm text-muted">Loading matches…</p>
+        ) : matchesStatus === 'failed' ? (
+          <p className="mt-4 text-sm text-coral">
+            Could not load matches. Is the API running on port 4000?
+          </p>
+        ) : matches.length === 0 ? (
+          <p className="mt-4 text-sm text-muted">
+            No matching candidates in this tenant. Add candidates that share at least one required
+            skill.
+          </p>
         ) : (
           <ul className="mt-4 divide-y divide-line">
             {matches.map((m) => {

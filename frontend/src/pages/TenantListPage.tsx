@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ListPage, type Column } from '../components/ListPage';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
-import { createTenant, fetchTenants } from '../store/tenantSlice';
+import { createTenant, fetchTenants, setSelectedTenant } from '../store/tenantSlice';
 import type { Tenant } from '../api/client';
 
 export function TenantListPage() {
@@ -93,6 +93,10 @@ export function TenantListPage() {
         total={total}
         page={page}
         onPageChange={(p) => dispatch(fetchTenants({ search, page: p }))}
+        onView={(r) => {
+          dispatch(setSelectedTenant(r.id));
+          navigate('/candidates');
+        }}
         emptyMessage="No tenants yet. Create one to get started."
       />
 

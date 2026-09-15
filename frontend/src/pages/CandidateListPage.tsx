@@ -22,7 +22,11 @@ export function CandidateListPage() {
   }, [dispatch, tenantId, search, sort]);
 
   const columns: Column<Candidate>[] = [
-    { key: 'name', header: 'Name', render: (r) => <span className="font-medium">{r.fullName}</span> },
+    {
+      key: 'name',
+      header: 'Name',
+      render: (r) => <span className="font-medium">{r.fullName}</span>,
+    },
     { key: 'location', header: 'Location', render: (r) => r.location || '—' },
     {
       key: 'exp',

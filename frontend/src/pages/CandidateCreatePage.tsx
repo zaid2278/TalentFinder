@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type Skill } from '../api/client';
+import { BackButton } from '../components/BackButton';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { createCandidate } from '../store/candidateSlice';
 
@@ -61,6 +62,7 @@ export function CandidateCreatePage() {
 
   return (
     <div className="mx-auto max-w-2xl animate-[fadeIn_0.35s_ease]">
+      <BackButton to="/candidates" label="Back to Candidates" />
       <h1 className="font-display text-3xl tracking-tight">Add Candidate</h1>
       <p className="mt-1 text-sm text-muted">Manual entry with optional CV file upload (no parsing).</p>
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSelectedTenant } from '../store/tenantSlice';
 
@@ -49,69 +50,112 @@ function RowMenu<T extends { id: string }>({
   onDelete?: (row: T) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    if (!open) return;
+
+    const btn = buttonRef.current;
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      const menuWidth = 176;
+      const left = Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8);
+      setMenuPos({
+        top: rect.bottom + 6,
+        left: Math.max(8, left),
+      });
+    }
+
+    let removeListeners: (() => void) | undefined;
+
+    // Defer so the opening click does not immediately close the menu
+    const timer = window.setTimeout(() => {
+      const onPointerDown = (e: PointerEvent) => {
+        const target = e.target as Node;
+        if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+        setOpen(false);
+      };
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') setOpen(false);
+      };
+      const onViewportChange = () => setOpen(false);
+
+      document.addEventListener('pointerdown', onPointerDown, true);
+      document.addEventListener('keydown', onKey);
+      window.addEventListener('resize', onViewportChange);
+      window.addEventListener('scroll', onViewportChange, true);
+
+      removeListeners = () => {
+        document.removeEventListener('pointerdown', onPointerDown, true);
+        document.removeEventListener('keydown', onKey);
+        window.removeEventListener('resize', onViewportChange);
+        window.removeEventListener('scroll', onViewportChange, true);
+      };
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      removeListeners?.();
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [open]);
 
   if (!onView && !onEdit && !onDelete) return null;
 
+  const items = [
+    onView && { key: 'view', label: 'View', danger: false, run: () => onView(row) },
+    onEdit && { key: 'edit', label: 'Edit', danger: false, run: () => onEdit(row) },
+    onDelete && { key: 'delete', label: 'Delete', danger: true, run: () => onDelete(row) },
+  ].filter(Boolean) as Array<{ key: string; label: string; danger: boolean; run: () => void }>;
+
   return (
-    <div className="relative" ref={ref}>
+    <>
       <button
+        ref={buttonRef}
         type="button"
-        className="rounded-md px-2 py-1 text-lg text-muted hover:bg-mist"
+        className={`inline-flex h-8 w-8 items-center justify-center rounded-lg text-base leading-none text-muted transition hover:bg-mist hover:text-ink ${
+          open ? 'bg-mist text-ink ring-1 ring-line' : ''
+        }`}
         aria-label="Row actions"
-        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
       >
         ⋮
       </button>
-      {open && (
-        <div className="absolute right-0 z-10 mt-1 min-w-[140px] overflow-hidden rounded-lg border border-line bg-white shadow-lg">
-          {onView && (
-            <button
-              type="button"
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-mist"
-              onClick={() => {
-                setOpen(false);
-                onView(row);
-              }}
-            >
-              View
-            </button>
-          )}
-          {onEdit && (
-            <button
-              type="button"
-              className="block w-full px-3 py-2 text-left text-sm hover:bg-mist"
-              onClick={() => {
-                setOpen(false);
-                onEdit(row);
-              }}
-            >
-              Edit
-            </button>
-          )}
-          {onDelete && (
-            <button
-              type="button"
-              className="block w-full px-3 py-2 text-left text-sm text-coral hover:bg-mist"
-              onClick={() => {
-                setOpen(false);
-                onDelete(row);
-              }}
-            >
-              Delete
-            </button>
-          )}
-        </div>
-      )}
-    </div>
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            className="fixed z-[1000] min-w-[176px] rounded-xl border border-line bg-white py-1 shadow-[0_12px_32px_rgba(12,31,46,0.18)]"
+            style={{ top: menuPos.top, left: menuPos.left }}
+          >
+            {items.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                role="menuitem"
+                className={`block w-full px-3.5 py-2.5 text-left text-sm font-medium transition hover:bg-mist ${
+                  item.danger ? 'text-coral' : 'text-ink'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(false);
+                  item.run();
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -213,8 +257,8 @@ export function ListPage<T extends { id: string }>({
         </select>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-line/80 bg-white/80 shadow-sm backdrop-blur-sm">
-        <div className="overflow-x-auto">
+      <div className="rounded-2xl border border-line/80 bg-white/80 shadow-sm backdrop-blur-sm">
+        <div className="overflow-x-auto rounded-t-2xl">
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-line bg-mist/60 text-xs uppercase tracking-[0.08em] text-muted">
               <tr>
@@ -223,7 +267,7 @@ export function ListPage<T extends { id: string }>({
                     {col.header}
                   </th>
                 ))}
-                <th className="px-4 py-3 font-medium">Actions</th>
+                <th className="w-14 px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -241,13 +285,31 @@ export function ListPage<T extends { id: string }>({
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="border-b border-line/60 last:border-0 hover:bg-mist/40">
+                  <tr
+                    key={row.id}
+                    className={`border-b border-line/60 last:border-0 hover:bg-mist/40 ${
+                      onView ? 'cursor-pointer' : ''
+                    }`}
+                    onClick={() => onView?.(row)}
+                    tabIndex={onView ? 0 : undefined}
+                    onKeyDown={(e) => {
+                      if (!onView) return;
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onView(row);
+                      }
+                    }}
+                  >
                     {columns.map((col) => (
                       <td key={col.key} className="px-4 py-3 align-middle">
                         {col.render(row)}
                       </td>
                     ))}
-                    <td className="px-4 py-3">
+                    <td
+                      className="px-4 py-3 text-right"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    >
                       <RowMenu row={row} onView={onView} onEdit={onEdit} onDelete={onDelete} />
                     </td>
                   </tr>

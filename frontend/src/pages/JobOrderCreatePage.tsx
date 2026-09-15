@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type Skill } from '../api/client';
+import { BackButton } from '../components/BackButton';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { createJobOrder } from '../store/jobOrderSlice';
 
@@ -59,6 +60,7 @@ export function JobOrderCreatePage() {
 
   return (
     <div className="mx-auto max-w-2xl animate-[fadeIn_0.35s_ease]">
+      <BackButton to="/job-orders" label="Back to Job Orders" />
       <h1 className="font-display text-3xl tracking-tight">Create Job Order</h1>
       <p className="mt-1 text-sm text-muted">Define the role so matching can rank candidates.</p>
 

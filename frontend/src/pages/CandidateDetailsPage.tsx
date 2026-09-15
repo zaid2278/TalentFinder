@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, type Skill } from '../api/client';
+import { BackButton } from '../components/BackButton';
 import { SkillChips } from '../components/ListPage';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
@@ -81,15 +82,10 @@ export function CandidateDetailsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 animate-[fadeIn_0.35s_ease]">
+      <BackButton to="/candidates" label="Back to Candidates" />
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-muted">
-            <Link to="/candidates" className="hover:text-sea">
-              Candidates
-            </Link>{' '}
-            / Profile
-          </p>
-          <h1 className="mt-1 font-display text-3xl tracking-tight">{candidate.fullName}</h1>
+          <h1 className="font-display text-3xl tracking-tight">{candidate.fullName}</h1>
         </div>
         <div className="flex gap-2">
           <button

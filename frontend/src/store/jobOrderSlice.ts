@@ -7,6 +7,7 @@ type JobOrderState = {
   page: number;
   current: JobOrder | null;
   matches: Match[];
+  matchesStatus: 'idle' | 'loading' | 'succeeded' | 'failed';
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
 };
@@ -17,6 +18,7 @@ const initialState: JobOrderState = {
   page: 1,
   current: null,
   matches: [],
+  matchesStatus: 'idle',
   status: 'idle',
   error: null,
 };
@@ -96,6 +98,7 @@ const jobOrderSlice = createSlice({
     clearCurrent(state) {
       state.current = null;
       state.matches = [];
+      state.matchesStatus = 'idle';
     },
   },
   extraReducers: (builder) => {
@@ -117,8 +120,17 @@ const jobOrderSlice = createSlice({
       .addCase(fetchJobOrder.fulfilled, (state, action) => {
         state.current = action.payload;
       })
+      .addCase(fetchMatches.pending, (state) => {
+        state.matchesStatus = 'loading';
+        state.matches = [];
+      })
       .addCase(fetchMatches.fulfilled, (state, action) => {
+        state.matchesStatus = 'succeeded';
         state.matches = action.payload;
+      })
+      .addCase(fetchMatches.rejected, (state) => {
+        state.matchesStatus = 'failed';
+        state.matches = [];
       })
       .addCase(createJobOrder.fulfilled, (state, action) => {
         state.items = [action.payload, ...state.items];

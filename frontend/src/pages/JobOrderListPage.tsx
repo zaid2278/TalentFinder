@@ -22,7 +22,11 @@ export function JobOrderListPage() {
   }, [dispatch, tenantId, search, sort]);
 
   const columns: Column<JobOrder>[] = [
-    { key: 'title', header: 'Job Title', render: (r) => <span className="font-medium">{r.jobTitle}</span> },
+    {
+      key: 'title',
+      header: 'Job Title',
+      render: (r) => <span className="font-medium">{r.jobTitle}</span>,
+    },
     { key: 'client', header: 'Client Name', render: (r) => r.clientName || '—' },
     { key: 'location', header: 'Location', render: (r) => r.location },
     {
