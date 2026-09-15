@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -234,6 +235,7 @@ async function upsertTenants() {
       create: {
         tenantId: tenant.id,
         name: `${name} Recruiter`,
+        username: name.toLowerCase(),
         email: `recruiter@${name.toLowerCase()}.demo`,
         passwordHash: 'demo-hash-not-used',
       },
@@ -295,6 +297,28 @@ async function seedTenantData(
   }
 }
 
+async function upsertAdmin() {
+  const passwordHash = await bcrypt.hash('password123', 10);
+  await prisma.recruiter.upsert({
+    where: { username: 'admin' },
+    update: {
+      name: 'Admin',
+      passwordHash,
+      role: Role.ADMIN,
+      tenantId: null,
+      email: 'admin@talentfinder.local',
+    },
+    create: {
+      username: 'admin',
+      name: 'Admin',
+      email: 'admin@talentfinder.local',
+      passwordHash,
+      role: Role.ADMIN,
+      tenantId: null,
+    },
+  });
+}
+
 async function main() {
   console.log('Seeding TalentFinder...');
   const skillMap = await upsertSkills();
@@ -303,6 +327,8 @@ async function main() {
   for (const tenant of tenants) {
     await seedTenantData(tenant.id, tenant.name, skillMap);
   }
+
+  await upsertAdmin();
 
   console.log('Seed complete.');
 }

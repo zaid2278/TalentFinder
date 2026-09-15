@@ -7,9 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  ADMIN
+  RECRUITER
+}
+
 model Tenant {
   id          String       @id @default(uuid())
   name        String       @unique
+  status      String       @default("Active")
   createdAt   DateTime     @default(now())
   recruiters  Recruiter[]
   candidates  Candidate[]
@@ -19,12 +25,14 @@ model Tenant {
 
 model Recruiter {
   id           String   @id @default(uuid())
-  tenantId     String
+  tenantId     String?
   name         String
+  username     String   @unique
   email        String   @unique
   passwordHash String
+  role         Role     @default(RECRUITER)
   createdAt    DateTime @default(now())
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
 }

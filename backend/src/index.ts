@@ -9,6 +9,9 @@ import skillsRouter from './routes/skills.js';
 import candidatesRouter from './routes/candidates.js';
 import jobOrdersRouter from './routes/jobOrders.js';
 import submissionsRouter from './routes/submissions.js';
+import authRouter from './routes/auth.js';
+import recruitersRouter from './routes/recruiters.js';
+import { authenticate } from './middleware/authenticate.js';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
@@ -23,7 +26,12 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+app.use('/api/auth', authRouter);
+
+app.use(authenticate);
+
 app.use('/api/tenants', tenantsRouter);
+app.use('/api/recruiters', recruitersRouter);
 app.use('/api/skills', skillsRouter);
 app.use('/api/candidates', candidatesRouter);
 app.use('/api/job-orders', jobOrdersRouter);

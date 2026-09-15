@@ -20,7 +20,9 @@ export type MatchInsight = {
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 // Groq retired llama-3.1-8b-instant on many accounts; override with GROQ_MODEL if needed.
 const MODEL = process.env.GROQ_MODEL?.trim() || 'openai/gpt-oss-20b';
-const TIMEOUT_MS = 12000;
+// gpt-oss models spend many completion tokens on hidden reasoning; keep headroom for JSON.
+const MAX_TOKENS = Number(process.env.GROQ_MAX_TOKENS) || 2500;
+const TIMEOUT_MS = 20000;
 
 function buildPrompt(input: MatchInsightInput): string {
   const required = input.jobOrder.requiredSkills.map((s) => s.name).join(', ') || 'none listed';
@@ -46,23 +48,51 @@ Return ONLY valid JSON (no markdown fences) shaped as:
 Each insight should briefly explain why that candidate is a strong fit, referencing their matched skills and experience for a recruiter. One entry per candidate.`;
 }
 
+function salvagePartialInsights(text: string): { insights: Array<{ candidateId: string; insight: string }> } {
+  const insights: Array<{ candidateId: string; insight: string }> = [];
+  const re =
+    /\{\s*"candidateId"\s*:\s*"([^"]+)"\s*,\s*"insight"\s*:\s*"((?:\\.|[^"\\])*)"\s*\}/g;
+  for (const match of text.matchAll(re)) {
+    insights.push({
+      candidateId: match[1],
+      insight: match[2].replace(/\\"/g, '"').replace(/\\n/g, ' ').trim(),
+    });
+  }
+  return { insights };
+}
+
 function extractJson(text: string): unknown {
   const trimmed = text.trim();
   try {
     return JSON.parse(trimmed);
   } catch {
+    // Fall through and try salvage strategies below
+  }
+
+  try {
     const start = trimmed.indexOf('{');
     const end = trimmed.lastIndexOf('}');
     if (start >= 0 && end > start) {
       return JSON.parse(trimmed.slice(start, end + 1));
     }
+  } catch {
+    // truncated object — salvage complete insight entries below
+  }
+
+  try {
     const arrStart = trimmed.indexOf('[');
     const arrEnd = trimmed.lastIndexOf(']');
     if (arrStart >= 0 && arrEnd > arrStart) {
       return JSON.parse(trimmed.slice(arrStart, arrEnd + 1));
     }
-    throw new Error('No JSON found');
+  } catch {
+    // truncated array — salvage below
   }
+
+  const partial = salvagePartialInsights(trimmed);
+  if (partial.insights.length) return partial;
+
+  throw new Error('No JSON found');
 }
 
 function normalizeInsights(raw: unknown, validIds: Set<string>): MatchInsight[] {
@@ -108,12 +138,12 @@ export const matchInsightService = {
         body: JSON.stringify({
           model: MODEL,
           temperature: 0.3,
-          max_tokens: 800,
+          max_tokens: MAX_TOKENS,
           messages: [
             {
               role: 'system',
               content:
-                'You write brief recruiter-facing match explanations. Respond with JSON only.',
+                'You write brief recruiter-facing match explanations. Respond with JSON only. Keep reasoning minimal.',
             },
             { role: 'user', content: buildPrompt(input) },
           ],
@@ -130,14 +160,29 @@ export const matchInsightService = {
       }
 
       const data = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
+        choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
       };
       const content = data.choices?.[0]?.message?.content;
-      if (!content) return [];
+      if (!content) {
+        console.warn(`[matchInsight] empty content from Groq (model=${MODEL})`);
+        return [];
+      }
 
-      const parsed = extractJson(content);
-      return normalizeInsights(parsed, validIds);
-    } catch {
+      try {
+        const parsed = extractJson(content);
+        return normalizeInsights(parsed, validIds);
+      } catch (err) {
+        console.warn(
+          `[matchInsight] JSON parse failed (finish=${data.choices?.[0]?.finish_reason}, len=${content.length}):`,
+          err instanceof Error ? err.message : err,
+        );
+        return [];
+      }
+    } catch (err) {
+      console.warn(
+        `[matchInsight] request failed:`,
+        err instanceof Error ? err.message : err,
+      );
       return [];
     } finally {
       clearTimeout(timer);

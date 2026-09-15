@@ -30,6 +30,17 @@ export const createTenant = createAsyncThunk('tenants/create', async (name: stri
   api.createTenant(name),
 );
 
+export const updateTenantStatus = createAsyncThunk(
+  'tenants/updateStatus',
+  async ({ id, status }: { id: string; status: 'Active' | 'Inactive' }) =>
+    api.updateTenantStatus(id, status),
+);
+
+export const deleteTenant = createAsyncThunk('tenants/delete', async (id: string) => {
+  await api.deleteTenant(id);
+  return id;
+});
+
 const tenantSlice = createSlice({
   name: 'tenants',
   initialState,
@@ -65,6 +76,20 @@ const tenantSlice = createSlice({
         state.total += 1;
         state.selectedTenantId = action.payload.id;
         localStorage.setItem(SELECTED_KEY, action.payload.id);
+      })
+      .addCase(updateTenantStatus.fulfilled, (state, action) => {
+        const idx = state.items.findIndex((t) => t.id === action.payload.id);
+        if (idx >= 0) state.items[idx] = action.payload;
+      })
+      .addCase(deleteTenant.fulfilled, (state, action) => {
+        state.items = state.items.filter((t) => t.id !== action.payload);
+        state.total = Math.max(0, state.total - 1);
+        if (state.selectedTenantId === action.payload) {
+          const next = state.items[0]?.id ?? null;
+          state.selectedTenantId = next;
+          if (next) localStorage.setItem(SELECTED_KEY, next);
+          else localStorage.removeItem(SELECTED_KEY);
+        }
       });
   },
 });

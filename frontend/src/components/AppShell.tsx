@@ -1,9 +1,10 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchTenants } from '../store/tenantSlice';
+import { logout } from '../store/authSlice';
 
-const nav = [
+const baseNav = [
   { to: '/tenants', label: 'Tenant' },
   { to: '/candidates', label: 'Candidate' },
   { to: '/job-orders', label: 'Job Order' },
@@ -11,6 +12,16 @@ const nav = [
 ];
 
 function UserAvatarMenu() {
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((s) => s.auth.user);
+  const initials =
+    user?.name
+      ?.split(/\s+/)
+      .map((p) => p[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || '??';
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -60,7 +71,7 @@ function UserAvatarMenu() {
           setOpen((v) => !v);
         }}
       >
-        RF
+        {initials}
       </button>
       {open && (
         <div
@@ -68,14 +79,20 @@ function UserAvatarMenu() {
           role="menu"
           className="absolute right-0 z-50 mt-2 min-w-[176px] rounded-xl border border-line bg-white py-1 shadow-[0_12px_32px_rgba(12,31,46,0.18)]"
         >
-          <p className="px-3.5 py-2.5 text-sm font-medium text-muted" role="presentation">
-            Recruiter
+          <p className="px-3.5 py-2.5 text-sm font-medium text-ink" role="presentation">
+            {user?.name ?? 'User'}
+          </p>
+          <p className="px-3.5 pb-2 text-xs text-muted" role="presentation">
+            {user?.role ?? ''}
           </p>
           <button
             type="button"
             role="menuitem"
-            disabled
-            className="block w-full cursor-not-allowed px-3.5 py-2.5 text-left text-sm font-medium text-muted/60"
+            className="block w-full px-3.5 py-2.5 text-left text-sm font-medium text-ink hover:bg-mist"
+            onClick={() => {
+              dispatch(logout());
+              navigate('/login', { replace: true });
+            }}
           >
             Sign out
           </button>
@@ -87,9 +104,14 @@ function UserAvatarMenu() {
 
 export function AppShell() {
   const dispatch = useAppDispatch();
+  const role = useAppSelector((s) => s.auth.user?.role);
   const selectedTenantId = useAppSelector((s) => s.tenants.selectedTenantId);
   const tenants = useAppSelector((s) => s.tenants.items);
   const selectedName = tenants.find((t) => t.id === selectedTenantId)?.name;
+  const nav =
+    role === 'ADMIN'
+      ? [...baseNav.slice(0, 1), { to: '/recruiters', label: 'Recruiters' }, ...baseNav.slice(1)]
+      : baseNav;
 
   useEffect(() => {
     dispatch(fetchTenants());

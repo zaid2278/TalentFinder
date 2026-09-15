@@ -23,4 +23,22 @@ export const tenantController = {
       next(err);
     }
   },
+
+  async updateStatus(req: Request, res: Response, next: NextFunction) {
+    try {
+      const tenant = await tenantService.updateStatus(req.params.id, req.body);
+      res.json(tenant);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async remove(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await tenantService.remove(req.params.id);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
 };

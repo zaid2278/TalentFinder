@@ -7,6 +7,10 @@ const createTenantSchema = z.object({
   name: z.string().trim().min(1, 'name is required'),
 });
 
+const updateStatusSchema = z.object({
+  status: z.enum(['Active', 'Inactive']),
+});
+
 export const tenantService = {
   async list(query: { search?: string; page?: string; pageSize?: string }) {
     const { page, pageSize, skip, take } = parsePagination(query);
@@ -17,7 +21,7 @@ export const tenantService = {
     });
 
     return {
-      items: items.map((t) => ({ ...t, status: 'Active' as const })),
+      items,
       total,
       page,
       pageSize,
@@ -28,12 +32,30 @@ export const tenantService = {
     const data = createTenantSchema.parse(body);
     try {
       const tenant = await tenantRepository.create(data.name);
-      return { ...tenant, status: 'Active' as const };
+      return tenant;
     } catch (err: unknown) {
       if (typeof err === 'object' && err && 'code' in err && (err as { code: string }).code === 'P2002') {
         throw new AppError('Tenant name already exists', 400);
       }
       throw err;
     }
+  },
+
+  async updateStatus(id: string, body: unknown) {
+    const data = updateStatusSchema.parse(body);
+    const existing = await tenantRepository.findById(id);
+    if (!existing) {
+      throw new AppError('Tenant not found', 404);
+    }
+    return tenantRepository.updateStatus(id, data.status);
+  },
+
+  async remove(id: string) {
+    const existing = await tenantRepository.findById(id);
+    if (!existing) {
+      throw new AppError('Tenant not found', 404);
+    }
+    await tenantRepository.remove(id);
+    return { success: true };
   },
 };

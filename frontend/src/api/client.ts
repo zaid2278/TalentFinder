@@ -1,4 +1,12 @@
+import { getStoredToken } from '../store/authSlice';
+
 const API_BASE = '';
+
+let onUnauthorized: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: () => void) {
+  onUnauthorized = handler;
+}
 
 export type Paginated<T> = {
   items: T[];
@@ -81,6 +89,22 @@ export type Submission = {
   candidate: { id: string; fullName: string };
 };
 
+export type AuthUser = {
+  id: string;
+  username: string;
+  role: 'ADMIN' | 'RECRUITER';
+  tenantId: string | null;
+  name: string;
+};
+
+export type RecruiterAccount = {
+  id: string;
+  name: string;
+  username: string;
+  role: 'ADMIN' | 'RECRUITER';
+  tenantId: string | null;
+};
+
 export type CvParseResponse = {
   readable: boolean;
   fields: {
@@ -96,8 +120,17 @@ export type CvParseResponse = {
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, init);
+  const token = getStoredToken();
+  const headers = new Headers(init?.headers);
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && path !== '/api/auth/login') {
+    onUnauthorized?.();
+  }
   if (!res.ok) {
     const message =
       data?.error ||
@@ -120,6 +153,39 @@ function withTenant(path: string, tenantId: string, params?: Record<string, stri
 }
 
 export const api = {
+  login: (username: string, password: string) =>
+    request<{ token: string; user: AuthUser }>('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    }),
+
+  getRecruiters: () => request<{ items: RecruiterAccount[] }>('/api/recruiters'),
+
+  createRecruiter: (body: {
+    name: string;
+    username: string;
+    password: string;
+    tenantId: string;
+  }) =>
+    request<RecruiterAccount>('/api/recruiters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+
+  updateTenantStatus: (id: string, status: 'Active' | 'Inactive') =>
+    request<Tenant>(`/api/tenants/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    }),
+
+  deleteTenant: (id: string) =>
+    request<{ success: boolean }>(`/api/tenants/${id}`, {
+      method: 'DELETE',
+    }),
+
   getTenants: (params?: { search?: string; page?: number }) =>
     request<Paginated<Tenant>>(
       `/api/tenants?${new URLSearchParams({

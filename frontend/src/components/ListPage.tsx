@@ -34,6 +34,7 @@ type ListPageProps<T extends { id: string }> = {
   onPageChange: (page: number) => void;
   onView?: (row: T) => void;
   onEdit?: (row: T) => void;
+  onEditStatus?: (row: T) => void;
   onDelete?: (row: T) => void;
   emptyMessage?: string;
 };
@@ -42,11 +43,13 @@ function RowMenu<T extends { id: string }>({
   row,
   onView,
   onEdit,
+  onEditStatus,
   onDelete,
 }: {
   row: T;
   onView?: (row: T) => void;
   onEdit?: (row: T) => void;
+  onEditStatus?: (row: T) => void;
   onDelete?: (row: T) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -101,11 +104,17 @@ function RowMenu<T extends { id: string }>({
     };
   }, [open]);
 
-  if (!onView && !onEdit && !onDelete) return null;
+  if (!onView && !onEdit && !onEditStatus && !onDelete) return null;
 
   const items = [
     onView && { key: 'view', label: 'View', danger: false, run: () => onView(row) },
     onEdit && { key: 'edit', label: 'Edit', danger: false, run: () => onEdit(row) },
+    onEditStatus && {
+      key: 'editStatus',
+      label: 'Edit Status',
+      danger: false,
+      run: () => onEditStatus(row),
+    },
     onDelete && { key: 'delete', label: 'Delete', danger: true, run: () => onDelete(row) },
   ].filter(Boolean) as Array<{ key: string; label: string; danger: boolean; run: () => void }>;
 
@@ -179,6 +188,7 @@ export function ListPage<T extends { id: string }>({
   onPageChange,
   onView,
   onEdit,
+  onEditStatus,
   onDelete,
   emptyMessage = 'No results found.',
 }: ListPageProps<T>) {
@@ -310,7 +320,13 @@ export function ListPage<T extends { id: string }>({
                       onClick={(e) => e.stopPropagation()}
                       onKeyDown={(e) => e.stopPropagation()}
                     >
-                      <RowMenu row={row} onView={onView} onEdit={onEdit} onDelete={onDelete} />
+                      <RowMenu
+                        row={row}
+                        onView={onView}
+                        onEdit={onEdit}
+                        onEditStatus={onEditStatus}
+                        onDelete={onDelete}
+                      />
                     </td>
                   </tr>
                 ))

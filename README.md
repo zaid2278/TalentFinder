@@ -104,6 +104,7 @@ Idempotent seed creates tenants **LinkedIn**, **Monster**, and **Naukri**, ~30 s
 ## Assumptions
 
 - Recruiters are tenant-scoped users in the schema; there is **no login UI** and no separate super-admin role beyond tenant creation.
+- Recruiter accounts are created by an admin rather than through public self-signup.
 - Skill matching is **exact skill ID / keyword** intersection (not fuzzy scoring).
 - New submissions start with status **Shortlisted**.
 - Optional **CV parsing** is available on Create Candidate (`POST /api/candidates/parse-cv` with `pdf-parse` / `mammoth`). Prefill is best-effort and always editable; manual entry with or without a file still works. Legacy `.doc` and empty/scanned files are treated as unreadable (no OCR).

@@ -12,7 +12,7 @@ export const tenantRepository = {
         skip,
         take,
         orderBy: { createdAt: 'desc' },
-        select: { id: true, name: true, createdAt: true },
+        select: { id: true, name: true, status: true, createdAt: true },
       }),
       prisma.tenant.count({ where }),
     ]);
@@ -23,11 +23,26 @@ export const tenantRepository = {
   async create(name: string) {
     return prisma.tenant.create({
       data: { name },
-      select: { id: true, name: true, createdAt: true },
+      select: { id: true, name: true, status: true, createdAt: true },
     });
   },
 
   async findById(id: string) {
     return prisma.tenant.findUnique({ where: { id } });
+  },
+
+  async updateStatus(id: string, status: string) {
+    return prisma.tenant.update({
+      where: { id },
+      data: { status },
+      select: { id: true, name: true, status: true, createdAt: true },
+    });
+  },
+
+  async remove(id: string) {
+    return prisma.tenant.delete({
+      where: { id },
+      select: { id: true },
+    });
   },
 };
