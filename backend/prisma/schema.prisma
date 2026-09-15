@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  createdAt   DateTime     @default(now())
+  recruiters  Recruiter[]
+  candidates  Candidate[]
+  jobOrders   JobOrder[]
+  submissions Submission[]
+}
+
+model Recruiter {
+  id           String   @id @default(uuid())
+  tenantId     String
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model Skill {
+  id              String           @id @default(uuid())
+  name            String           @unique
+  candidateSkills CandidateSkill[]
+  jobOrderSkills  JobOrderSkill[]
+}
+
+model Candidate {
+  id              String           @id @default(uuid())
+  tenantId        String
+  fullName        String
+  email           String?
+  phone           String?
+  location        String?
+  experienceYears Int
+  cvUrl           String?
+  createdAt       DateTime         @default(now())
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  skills          CandidateSkill[]
+  submissions     Submission[]
+
+  @@index([tenantId])
+}
+
+model CandidateSkill {
+  candidateId String
+  skillId     String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  skill       Skill     @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([candidateId, skillId])
+  @@index([skillId])
+}
+
+model JobOrder {
+  id                 String          @id @default(uuid())
+  tenantId           String
+  jobTitle           String
+  clientName         String?
+  location           String
+  minExperienceYears Int
+  numberOfOpenings   Int
+  status             String          @default("Open")
+  createdAt          DateTime        @default(now())
+  tenant             Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  skills             JobOrderSkill[]
+  submissions        Submission[]
+
+  @@index([tenantId])
+}
+
+model JobOrderSkill {
+  jobOrderId String
+  skillId    String
+  jobOrder   JobOrder @relation(fields: [jobOrderId], references: [id], onDelete: Cascade)
+  skill      Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@id([jobOrderId, skillId])
+  @@index([skillId])
+}
+
+model Submission {
+  id          String    @id @default(uuid())
+  tenantId    String
+  jobOrderId  String
+  candidateId String
+  status      String    @default("Shortlisted")
+  createdAt   DateTime  @default(now())
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  jobOrder    JobOrder  @relation(fields: [jobOrderId], references: [id], onDelete: Cascade)
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([jobOrderId, candidateId])
+  @@index([tenantId])
+}

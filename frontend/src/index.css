@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --color-ink: #0c1f2e;
+  --color-ink-soft: #1a3348;
+  --color-mist: #e8eef3;
+  --color-paper: #f4f7fa;
+  --color-sea: #1f8a7a;
+  --color-sea-deep: #14685c;
+  --color-coral: #e07a5f;
+  --color-line: #d3dde6;
+  --color-muted: #5c7388;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(31, 138, 122, 0.12), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(224, 122, 95, 0.08), transparent 50%),
+    linear-gradient(180deg, #f7fafc 0%, var(--color-paper) 40%, #eef3f7 100%);
+  background-attachment: fixed;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
