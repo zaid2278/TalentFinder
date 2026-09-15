@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchTenants } from '../store/tenantSlice';
 
@@ -9,6 +9,81 @@ const nav = [
   { to: '/job-orders', label: 'Job Order' },
   { to: '/submissions', label: 'Submission' },
 ];
+
+function UserAvatarMenu() {
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let removeListeners: (() => void) | undefined;
+
+    // Same deferred outside-click / Escape pattern as RowMenu in ListPage
+    const timer = window.setTimeout(() => {
+      const onPointerDown = (e: PointerEvent) => {
+        const target = e.target as Node;
+        if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+        setOpen(false);
+      };
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') setOpen(false);
+      };
+
+      document.addEventListener('pointerdown', onPointerDown, true);
+      document.addEventListener('keydown', onKey);
+
+      removeListeners = () => {
+        document.removeEventListener('pointerdown', onPointerDown, true);
+        document.removeEventListener('keydown', onKey);
+      };
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      removeListeners?.();
+    };
+  }, [open]);
+
+  return (
+    <div className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        className="flex h-10 w-10 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-sea"
+        aria-label="User menu"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+      >
+        RF
+      </button>
+      {open && (
+        <div
+          ref={menuRef}
+          role="menu"
+          className="absolute right-0 z-50 mt-2 min-w-[176px] rounded-xl border border-line bg-white py-1 shadow-[0_12px_32px_rgba(12,31,46,0.18)]"
+        >
+          <p className="px-3.5 py-2.5 text-sm font-medium text-muted" role="presentation">
+            Recruiter
+          </p>
+          <button
+            type="button"
+            role="menuitem"
+            disabled
+            className="block w-full cursor-not-allowed px-3.5 py-2.5 text-left text-sm font-medium text-muted/60"
+          >
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function AppShell() {
   const dispatch = useAppDispatch();
@@ -58,12 +133,7 @@ export function AppShell() {
             <p className="font-display text-xl text-ink sm:text-2xl">TalentFinder</p>
             <p className="text-xs text-muted sm:text-sm">Match talent to open roles, by tenant</p>
           </div>
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-ink text-sm font-semibold text-white"
-            aria-label="User avatar"
-          >
-            RF
-          </div>
+          <UserAvatarMenu />
         </header>
         <main className="px-4 py-6 sm:px-8 sm:py-8">
           <Outlet />
