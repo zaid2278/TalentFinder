@@ -1,7 +1,8 @@
-import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { useEffect } from 'react';
 import { store } from './store';
+import { useAppSelector } from './store/hooks';
 import { AppShell } from './components/AppShell';
 import { AuthGuard } from './components/AuthGuard';
 import { LoginPage } from './pages/LoginPage';
@@ -30,6 +31,14 @@ function UnauthorizedHandler() {
   return null;
 }
 
+function RequireAdmin() {
+  const role = useAppSelector((s) => s.auth.user?.role);
+  if (role !== 'ADMIN') {
+    return <Navigate to="/tenants" replace />;
+  }
+  return <Outlet />;
+}
+
 export default function App() {
   return (
     <Provider store={store}>
@@ -41,7 +50,9 @@ export default function App() {
             <Route element={<AppShell />}>
               <Route path="/" element={<Navigate to="/tenants" replace />} />
               <Route path="/tenants" element={<TenantListPage />} />
-              <Route path="/recruiters" element={<RecruitersPage />} />
+              <Route element={<RequireAdmin />}>
+                <Route path="/recruiters" element={<RecruitersPage />} />
+              </Route>
               <Route path="/candidates" element={<CandidateListPage />} />
               <Route path="/candidates/new" element={<CandidateCreatePage />} />
               <Route path="/candidates/:id" element={<CandidateDetailsPage />} />
