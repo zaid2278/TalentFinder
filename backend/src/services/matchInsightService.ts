@@ -21,8 +21,9 @@ const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 // Groq retired llama-3.1-8b-instant on many accounts; override with GROQ_MODEL if needed.
 const MODEL = process.env.GROQ_MODEL?.trim() || 'openai/gpt-oss-20b';
 // gpt-oss models spend many completion tokens on hidden reasoning; keep headroom for JSON.
-const MAX_TOKENS = Number(process.env.GROQ_MAX_TOKENS) || 2500;
-const TIMEOUT_MS = 20000;
+// Cap below Groq free-tier TPM (8k) so one insights call still fits with the prompt.
+const MAX_TOKENS = Number(process.env.GROQ_MAX_TOKENS) || 4000;
+const TIMEOUT_MS = 25000;
 
 function buildPrompt(input: MatchInsightInput): string {
   const required = input.jobOrder.requiredSkills.map((s) => s.name).join(', ') || 'none listed';
