@@ -8,6 +8,7 @@ router.use(requireTenant);
 
 router.get('/', jobOrderController.list);
 router.post('/', jobOrderController.create);
+router.get('/:id/matches/insights', jobOrderController.matchInsights);
 router.get('/:id/matches', jobOrderController.matches);
 router.post('/:id/shortlist', jobOrderController.shortlist);
 router.delete('/:id/shortlist', jobOrderController.unshortlist);

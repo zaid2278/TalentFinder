@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { jobOrderService } from '../services/jobOrderService.js';
+import { matchInsightService } from '../services/matchInsightService.js';
 
 export const jobOrderController = {
   async list(req: Request, res: Response, next: NextFunction) {
@@ -56,6 +57,33 @@ export const jobOrderController = {
     try {
       const matches = await jobOrderService.getMatches(req.tenantId!, req.params.id);
       res.json(matches);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async matchInsights(req: Request, res: Response, next: NextFunction) {
+    try {
+      const tenantId = req.tenantId!;
+      const jobOrderId = req.params.id;
+      const job = await jobOrderService.getById(tenantId, jobOrderId);
+      const matches = await jobOrderService.getMatches(tenantId, jobOrderId);
+
+      const insights = await matchInsightService.getMatchInsights({
+        jobOrder: {
+          jobTitle: job.jobTitle,
+          requiredSkills: job.requiredSkills,
+        },
+        matches: matches.map((m) => ({
+          candidateId: m.candidate.id,
+          fullName: m.candidate.fullName,
+          experienceYears: m.candidate.experienceYears,
+          matchedSkills: m.matchedSkills,
+          matchCount: m.matchCount,
+        })),
+      });
+
+      res.json({ insights });
     } catch (err) {
       next(err);
     }

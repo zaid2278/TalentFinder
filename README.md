@@ -82,6 +82,7 @@ Idempotent seed creates tenants **LinkedIn**, **Monster**, and **Naukri**, ~30 s
 - Skill matching is **exact skill ID / keyword** intersection (not fuzzy scoring).
 - New submissions start with status **Shortlisted**.
 - Optional **CV parsing** is available on Create Candidate (`POST /api/candidates/parse-cv` with `pdf-parse` / `mammoth`). Prefill is best-effort and always editable; manual entry with or without a file still works. Legacy `.doc` and empty/scanned files are treated as unreadable (no OCR).
+- Optional **AI Match Insights** use Groq (`GROQ_API_KEY`, default model `openai/gpt-oss-20b`, overridable via `GROQ_MODEL`) via `GET /api/job-orders/:id/matches/insights`. Ranking stays deterministic skill overlap; insights are a separate non-blocking layer that silently no-ops if the key is missing or the call fails.
 - Tenant context for list/CRUD screens is the selected tenant in the UI (persisted in `localStorage`) and is sent as a `tenantId` query parameter on API calls.
 - Job order and candidate status values are plain strings (`Open` / `Closed`, `Shortlisted`) rather than DB enums.
 

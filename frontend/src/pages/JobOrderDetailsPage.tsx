@@ -34,13 +34,38 @@ export function JobOrderDetailsPage() {
   const [skillIds, setSkillIds] = useState<string[]>([]);
   const [shortlisting, setShortlisting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [insightsByCandidate, setInsightsByCandidate] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!tenantId || !id) return;
     dispatch(clearCurrent());
     dispatch(fetchJobOrder({ tenantId, id }));
     dispatch(fetchMatches({ tenantId, id }));
+    setInsightsByCandidate({});
   }, [dispatch, tenantId, id]);
+
+  useEffect(() => {
+    if (!tenantId || !id || matchesStatus !== 'succeeded' || matches.length === 0) return;
+
+    let cancelled = false;
+    api
+      .getMatchInsights(tenantId, id)
+      .then((res) => {
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        for (const item of res.insights ?? []) {
+          if (item.candidateId && item.insight) map[item.candidateId] = item.insight;
+        }
+        setInsightsByCandidate(map);
+      })
+      .catch(() => {
+        if (!cancelled) setInsightsByCandidate({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId, id, matchesStatus, matches.length]);
 
   useEffect(() => {
     api.getSkills().then(setSkills).catch(() => setSkills([]));
@@ -268,6 +293,7 @@ export function JobOrderDetailsPage() {
       <section className="rounded-2xl border border-line bg-white/80 p-6">
         <h2 className="font-display text-xl">Matching Candidates</h2>
         <p className="mt-1 text-sm text-muted">Ranked by exact skill overlap within this tenant.</p>
+        <p className="mt-1 text-xs text-muted/80">Fit explanations powered by AI (optional)</p>
         {matchesStatus === 'loading' || matchesStatus === 'idle' ? (
           <p className="mt-4 text-sm text-muted">Loading matches…</p>
         ) : matchesStatus === 'failed' ? (
@@ -283,6 +309,7 @@ export function JobOrderDetailsPage() {
           <ul className="mt-4 divide-y divide-line">
             {matches.map((m) => {
               const already = shortlistedIds.has(m.candidate.id);
+              const insight = insightsByCandidate[m.candidate.id];
               return (
                 <li
                   key={m.candidate.id}
@@ -303,6 +330,9 @@ export function JobOrderDetailsPage() {
                     <div className="mt-2">
                       <SkillChips skills={m.matchedSkills} />
                     </div>
+                    {insight && (
+                      <p className="mt-2 text-sm italic text-muted">AI insight: {insight}</p>
+                    )}
                   </div>
                   <button
                     type="button"

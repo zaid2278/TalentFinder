@@ -188,6 +188,11 @@ export const api = {
   getMatches: (tenantId: string, jobOrderId: string) =>
     request<Match[]>(withTenant(`/api/job-orders/${jobOrderId}/matches`, tenantId)),
 
+  getMatchInsights: (tenantId: string, jobOrderId: string) =>
+    request<{ insights: Array<{ candidateId: string; insight: string }> }>(
+      withTenant(`/api/job-orders/${jobOrderId}/matches/insights`, tenantId),
+    ),
+
   shortlist: (tenantId: string, jobOrderId: string, candidateId: string) =>
     request(withTenant(`/api/job-orders/${jobOrderId}/shortlist`, tenantId), {
       method: 'POST',

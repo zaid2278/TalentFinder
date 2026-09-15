@@ -1,0 +1,146 @@
+export type MatchInsightInput = {
+  jobOrder: {
+    jobTitle: string;
+    requiredSkills: Array<{ name: string }>;
+  };
+  matches: Array<{
+    candidateId: string;
+    fullName: string;
+    experienceYears: number;
+    matchedSkills: Array<{ name: string }>;
+    matchCount: number;
+  }>;
+};
+
+export type MatchInsight = {
+  candidateId: string;
+  insight: string;
+};
+
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+// Groq retired llama-3.1-8b-instant on many accounts; override with GROQ_MODEL if needed.
+const MODEL = process.env.GROQ_MODEL?.trim() || 'openai/gpt-oss-20b';
+const TIMEOUT_MS = 12000;
+
+function buildPrompt(input: MatchInsightInput): string {
+  const required = input.jobOrder.requiredSkills.map((s) => s.name).join(', ') || 'none listed';
+  const candidates = input.matches.map((m) => ({
+    candidateId: m.candidateId,
+    name: m.fullName,
+    experienceYears: m.experienceYears,
+    matchCount: m.matchCount,
+    matchedSkills: m.matchedSkills.map((s) => s.name),
+  }));
+
+  return `You are helping a recruiter skim fit explanations for a job order.
+
+Job title: ${input.jobOrder.jobTitle}
+Required skills: ${required}
+
+Candidates (already ranked by exact skill overlap — do not reorder or invent matches):
+${JSON.stringify(candidates, null, 2)}
+
+Return ONLY valid JSON (no markdown fences) shaped as:
+{"insights":[{"candidateId":"<id>","insight":"<one sentence under 25 words>"}]}
+
+Each insight should briefly explain why that candidate is a strong fit, referencing their matched skills and experience for a recruiter. One entry per candidate.`;
+}
+
+function extractJson(text: string): unknown {
+  const trimmed = text.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const start = trimmed.indexOf('{');
+    const end = trimmed.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      return JSON.parse(trimmed.slice(start, end + 1));
+    }
+    const arrStart = trimmed.indexOf('[');
+    const arrEnd = trimmed.lastIndexOf(']');
+    if (arrStart >= 0 && arrEnd > arrStart) {
+      return JSON.parse(trimmed.slice(arrStart, arrEnd + 1));
+    }
+    throw new Error('No JSON found');
+  }
+}
+
+function normalizeInsights(raw: unknown, validIds: Set<string>): MatchInsight[] {
+  let list: unknown[] = [];
+  if (Array.isArray(raw)) {
+    list = raw;
+  } else if (raw && typeof raw === 'object' && Array.isArray((raw as { insights?: unknown }).insights)) {
+    list = (raw as { insights: unknown[] }).insights;
+  } else {
+    return [];
+  }
+
+  const results: MatchInsight[] = [];
+  for (const item of list) {
+    if (!item || typeof item !== 'object') continue;
+    const candidateId = String((item as { candidateId?: unknown }).candidateId ?? '');
+    const insight = String((item as { insight?: unknown }).insight ?? '').trim();
+    if (!candidateId || !insight || !validIds.has(candidateId)) continue;
+    results.push({ candidateId, insight: insight.slice(0, 220) });
+  }
+  return results;
+}
+
+export const matchInsightService = {
+  async getMatchInsights(input: MatchInsightInput): Promise<MatchInsight[]> {
+    if (!input.matches.length) return [];
+
+    const apiKey = process.env.GROQ_API_KEY?.trim();
+    if (!apiKey) return [];
+
+    const validIds = new Set(input.matches.map((m) => m.candidateId));
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      const response = await fetch(GROQ_URL, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          temperature: 0.3,
+          max_tokens: 800,
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You write brief recruiter-facing match explanations. Respond with JSON only.',
+            },
+            { role: 'user', content: buildPrompt(input) },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        // Keep ranking UX unbroken; log enough to debug model/key issues without secrets
+        const errBody = await response.text().catch(() => '');
+        console.warn(
+          `[matchInsight] Groq ${response.status}: ${errBody.slice(0, 200)} (model=${MODEL})`,
+        );
+        return [];
+      }
+
+      const data = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) return [];
+
+      const parsed = extractJson(content);
+      return normalizeInsights(parsed, validIds);
+    } catch {
+      return [];
+    } finally {
+      clearTimeout(timer);
+    }
+  },
+};
