@@ -81,6 +81,20 @@ export type Submission = {
   candidate: { id: string; fullName: string };
 };
 
+export type CvParseResponse = {
+  readable: boolean;
+  fields: {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    experienceYears?: number;
+    skillIds?: string[];
+  };
+  rawTextLength: number;
+  cvUrl: string;
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, init);
   const data = await res.json().catch(() => ({}));
@@ -181,6 +195,22 @@ export const api = {
       body: JSON.stringify({ candidateId }),
     }),
 
+  unshortlist: (tenantId: string, jobOrderId: string, candidateId: string) =>
+    request(withTenant(`/api/job-orders/${jobOrderId}/shortlist`, tenantId), {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidateId }),
+    }),
+
   getSubmissions: (tenantId: string, params?: { search?: string; page?: number; sort?: string }) =>
     request<Paginated<Submission>>(withTenant('/api/submissions', tenantId, params)),
+
+  parseCv: (file: File) => {
+    const formData = new FormData();
+    formData.append('cv', file);
+    return request<CvParseResponse>('/api/candidates/parse-cv', {
+      method: 'POST',
+      body: formData,
+    });
+  },
 };

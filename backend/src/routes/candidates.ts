@@ -5,6 +5,9 @@ import { upload } from '../middleware/upload.js';
 
 const router = Router();
 
+// Parse-only endpoint (no tenant required; does not create a candidate)
+router.post('/parse-cv', upload.single('cv'), candidateController.parseCv);
+
 router.use(requireTenant);
 
 router.get('/', candidateController.list);

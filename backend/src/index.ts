@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import prisma from './lib/prisma.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import tenantsRouter from './routes/tenants.js';
 import skillsRouter from './routes/skills.js';
@@ -30,6 +31,24 @@ app.use('/api/submissions', submissionsRouter);
 
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`TalentFinder API listening on http://localhost:${PORT}`);
 });
+
+async function shutdown(signal: string) {
+  console.log(`\n${signal} received — shutting down`);
+  server.close(async () => {
+    try {
+      await prisma.$disconnect();
+    } catch {
+      // ignore
+    }
+    process.exit(0);
+  });
+
+  // Hard exit if close hangs (keeps tsx watch from force-killing forever)
+  setTimeout(() => process.exit(0), 2000).unref();
+}
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));

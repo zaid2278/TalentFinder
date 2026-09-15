@@ -69,4 +69,13 @@ export const jobOrderController = {
       next(err);
     }
   },
+
+  async unshortlist(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await jobOrderService.unshortlist(req.tenantId!, req.params.id, req.body);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
 };

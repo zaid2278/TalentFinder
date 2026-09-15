@@ -10,6 +10,7 @@ import {
   fetchJobOrder,
   fetchMatches,
   shortlistCandidate,
+  unshortlistCandidate,
   updateJobOrder,
 } from '../store/jobOrderSlice';
 
@@ -66,6 +67,16 @@ export function JobOrderDetailsPage() {
     setShortlisting(candidateId);
     try {
       await dispatch(shortlistCandidate({ tenantId, jobOrderId: id, candidateId })).unwrap();
+    } finally {
+      setShortlisting(null);
+    }
+  }
+
+  async function handleUnshortlist(candidateId: string) {
+    if (!tenantId) return;
+    setShortlisting(candidateId);
+    try {
+      await dispatch(unshortlistCandidate({ tenantId, jobOrderId: id, candidateId })).unwrap();
     } finally {
       setShortlisting(null);
     }
@@ -295,15 +306,23 @@ export function JobOrderDetailsPage() {
                   </div>
                   <button
                     type="button"
-                    disabled={already || shortlisting === m.candidate.id}
-                    onClick={() => handleShortlist(m.candidate.id)}
+                    disabled={shortlisting === m.candidate.id}
+                    onClick={() =>
+                      already
+                        ? handleUnshortlist(m.candidate.id)
+                        : handleShortlist(m.candidate.id)
+                    }
                     className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold transition ${
                       already
-                        ? 'bg-mist text-muted'
+                        ? 'border border-line bg-white text-ink hover:border-coral hover:text-coral'
                         : 'bg-coral text-white hover:opacity-90'
                     }`}
                   >
-                    {already ? 'Shortlisted' : shortlisting === m.candidate.id ? '…' : 'Shortlist'}
+                    {shortlisting === m.candidate.id
+                      ? '…'
+                      : already
+                        ? 'Remove shortlist'
+                        : 'Shortlist'}
                   </button>
                 </li>
               );
@@ -326,9 +345,19 @@ export function JobOrderDetailsPage() {
                 >
                   {sub.candidate.fullName}
                 </Link>
-                <span className="rounded-md bg-sea/10 px-2 py-0.5 text-xs font-semibold text-sea-deep">
-                  {sub.status}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-md bg-sea/10 px-2 py-0.5 text-xs font-semibold text-sea-deep">
+                    {sub.status}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={shortlisting === sub.candidate.id}
+                    onClick={() => handleUnshortlist(sub.candidate.id)}
+                    className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-coral hover:border-coral"
+                  >
+                    {shortlisting === sub.candidate.id ? '…' : 'Remove'}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

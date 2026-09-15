@@ -65,4 +65,13 @@ export const submissionRepository = {
       },
     });
   },
+
+  async deleteByJobAndCandidate(tenantId: string, jobOrderId: string, candidateId: string) {
+    const existing = await prisma.submission.findFirst({
+      where: { tenantId, jobOrderId, candidateId },
+    });
+    if (!existing) return null;
+    await prisma.submission.delete({ where: { id: existing.id } });
+    return existing;
+  },
 };

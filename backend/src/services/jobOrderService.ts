@@ -177,4 +177,20 @@ export const jobOrderService = {
 
     return submissionRepository.create(tenantId, jobOrderId, candidateId);
   },
+
+  async unshortlist(tenantId: string, jobOrderId: string, body: unknown) {
+    const { candidateId } = shortlistSchema.parse(body);
+
+    const job = await jobOrderRepository.findById(tenantId, jobOrderId);
+    if (!job) throw new AppError('Job order not found', 404);
+
+    const deleted = await submissionRepository.deleteByJobAndCandidate(
+      tenantId,
+      jobOrderId,
+      candidateId,
+    );
+    if (!deleted) throw new AppError('Shortlist not found', 404);
+
+    return { success: true };
+  },
 };

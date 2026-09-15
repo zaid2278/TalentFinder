@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { candidateService } from '../services/candidateService.js';
+import { cvParseService } from '../services/cvParseService.js';
 
 export const candidateController = {
   async list(req: Request, res: Response, next: NextFunction) {
@@ -27,7 +28,11 @@ export const candidateController = {
 
   async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const cvUrl = req.file ? `/uploads/${req.file.filename}` : null;
+      const cvUrl = req.file
+        ? `/uploads/${req.file.filename}`
+        : typeof req.body.cvUrl === 'string' && req.body.cvUrl
+          ? req.body.cvUrl
+          : null;
       const candidate = await candidateService.create(req.tenantId!, req.body, cvUrl);
       res.status(201).json(candidate);
     } catch (err) {
@@ -49,6 +54,27 @@ export const candidateController = {
     try {
       const result = await candidateService.remove(req.tenantId!, req.params.id);
       res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async parseCv(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'CV file is required' });
+      }
+
+      const cvUrl = `/uploads/${req.file.filename}`;
+      const parsed = await cvParseService.parseCv(
+        req.file.path,
+        req.file.originalname || req.file.mimetype,
+      );
+
+      res.json({
+        ...parsed,
+        cvUrl,
+      });
     } catch (err) {
       next(err);
     }

@@ -17,6 +17,9 @@ export function CandidateCreatePage() {
   const [phone, setPhone] = useState('');
   const [skillIds, setSkillIds] = useState<string[]>([]);
   const [cvFile, setCvFile] = useState<File | null>(null);
+  const [parsedCvUrl, setParsedCvUrl] = useState<string | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const [parseMessage, setParseMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -26,6 +29,41 @@ export function CandidateCreatePage() {
 
   function toggleSkill(id: string) {
     setSkillIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
+  }
+
+  async function handleCvSelected(file: File | null) {
+    setCvFile(file);
+    setParsedCvUrl(null);
+    setParseMessage(null);
+    if (!file) return;
+
+    setParsing(true);
+    try {
+      const result = await api.parseCv(file);
+      setParsedCvUrl(result.cvUrl);
+
+      if (result.readable) {
+        const { fields } = result;
+        if (fields.fullName) setFullName(fields.fullName);
+        if (fields.email) setEmail(fields.email);
+        if (fields.phone) setPhone(fields.phone);
+        if (fields.location) setLocation(fields.location);
+        if (fields.experienceYears !== undefined) setExperienceYears(fields.experienceYears);
+        if (fields.skillIds?.length) setSkillIds(fields.skillIds);
+        setParseMessage('CV parsed — review and edit the fields below before saving.');
+      } else {
+        setParseMessage(
+          "We couldn't read this file automatically, please fill in the details below",
+        );
+      }
+    } catch {
+      // Fail softly into manual entry; keep the selected file for upload on save
+      setParseMessage(
+        "We couldn't read this file automatically, please fill in the details below",
+      );
+    } finally {
+      setParsing(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -49,7 +87,11 @@ export function CandidateCreatePage() {
       if (email) formData.append('email', email);
       if (phone) formData.append('phone', phone);
       formData.append('skillIds', JSON.stringify(skillIds));
-      if (cvFile) formData.append('cv', cvFile);
+      if (cvFile) {
+        formData.append('cv', cvFile);
+      } else if (parsedCvUrl) {
+        formData.append('cvUrl', parsedCvUrl);
+      }
 
       const candidate = await dispatch(createCandidate({ tenantId, formData })).unwrap();
       navigate(`/candidates/${candidate.id}`);
@@ -64,18 +106,34 @@ export function CandidateCreatePage() {
     <div className="mx-auto max-w-2xl animate-[fadeIn_0.35s_ease]">
       <BackButton to="/candidates" label="Back to Candidates" />
       <h1 className="font-display text-3xl tracking-tight">Add Candidate</h1>
-      <p className="mt-1 text-sm text-muted">Manual entry with optional CV file upload (no parsing).</p>
+      <p className="mt-1 text-sm text-muted">
+        Optional CV upload can auto-fill fields; you can always enter details manually.
+      </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-5 rounded-2xl border border-line bg-white/80 p-6 shadow-sm">
-        <label className="block text-sm font-medium">
-          Upload CV (optional)
-          <input
-            type="file"
-            accept=".pdf,.doc,.docx"
-            className="mt-1.5 block w-full text-sm"
-            onChange={(e) => setCvFile(e.target.files?.[0] ?? null)}
-          />
-        </label>
+        <div>
+          <label className="block text-sm font-medium">
+            Upload CV (optional)
+            <input
+              type="file"
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="mt-1.5 block w-full text-sm"
+              onChange={(e) => handleCvSelected(e.target.files?.[0] ?? null)}
+            />
+          </label>
+          {parsing && (
+            <p className="mt-2 text-sm text-muted">Reading CV…</p>
+          )}
+          {!parsing && parseMessage && (
+            <p
+              className={`mt-2 text-sm ${
+                parseMessage.startsWith("We couldn't") ? 'text-coral' : 'text-sea-deep'
+              }`}
+            >
+              {parseMessage}
+            </p>
+          )}
+        </div>
 
         <label className="block text-sm font-medium">
           Full Name *

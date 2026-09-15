@@ -91,6 +91,22 @@ export const shortlistCandidate = createAsyncThunk(
   },
 );
 
+export const unshortlistCandidate = createAsyncThunk(
+  'jobOrders/unshortlist',
+  async ({
+    tenantId,
+    jobOrderId,
+    candidateId,
+  }: {
+    tenantId: string;
+    jobOrderId: string;
+    candidateId: string;
+  }) => {
+    await api.unshortlist(tenantId, jobOrderId, candidateId);
+    return api.getJobOrder(tenantId, jobOrderId);
+  },
+);
+
 const jobOrderSlice = createSlice({
   name: 'jobOrders',
   initialState,
@@ -147,6 +163,9 @@ const jobOrderSlice = createSlice({
         if (state.current?.id === action.payload) state.current = null;
       })
       .addCase(shortlistCandidate.fulfilled, (state, action) => {
+        state.current = action.payload;
+      })
+      .addCase(unshortlistCandidate.fulfilled, (state, action) => {
         state.current = action.payload;
       });
   },

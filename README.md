@@ -81,7 +81,7 @@ Idempotent seed creates tenants **LinkedIn**, **Monster**, and **Naukri**, ~30 s
 - Recruiters are tenant-scoped users in the schema; there is **no login UI** and no separate super-admin role beyond tenant creation.
 - Skill matching is **exact skill ID / keyword** intersection (not fuzzy scoring).
 - New submissions start with status **Shortlisted**.
-- **CV parsing was intentionally skipped.** The Create Candidate form accepts an optional PDF/DOCX upload that is stored on disk and linked via `cvUrl`; fields are always entered manually.
+- Optional **CV parsing** is available on Create Candidate (`POST /api/candidates/parse-cv` with `pdf-parse` / `mammoth`). Prefill is best-effort and always editable; manual entry with or without a file still works. Legacy `.doc` and empty/scanned files are treated as unreadable (no OCR).
 - Tenant context for list/CRUD screens is the selected tenant in the UI (persisted in `localStorage`) and is sent as a `tenantId` query parameter on API calls.
 - Job order and candidate status values are plain strings (`Open` / `Closed`, `Shortlisted`) rather than DB enums.
 
