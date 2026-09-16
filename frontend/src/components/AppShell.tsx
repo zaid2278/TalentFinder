@@ -107,7 +107,9 @@ export function AppShell() {
   const role = useAppSelector((s) => s.auth.user?.role);
   const selectedTenantId = useAppSelector((s) => s.tenants.selectedTenantId);
   const tenants = useAppSelector((s) => s.tenants.items);
-  const selectedName = tenants.find((t) => t.id === selectedTenantId)?.name;
+  const selectedName = tenants.find(
+    (t) => t.id === selectedTenantId && t.status === 'Active',
+  )?.name;
   const nav =
     role === 'ADMIN'
       ? [...baseNav.slice(0, 1), { to: '/recruiters', label: 'Recruiters' }, ...baseNav.slice(1)]

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { candidateController } from '../controllers/candidateController.js';
 import { requireTenant } from '../middleware/requireTenant.js';
+import { requireActiveTenantForWrites } from '../middleware/requireActiveTenantForWrites.js';
 import { upload } from '../middleware/upload.js';
 
 const router = Router();
@@ -9,6 +10,7 @@ const router = Router();
 router.post('/parse-cv', upload.single('cv'), candidateController.parseCv);
 
 router.use(requireTenant);
+router.use(requireActiveTenantForWrites);
 
 router.get('/', candidateController.list);
 router.post('/', upload.single('cv'), candidateController.create);

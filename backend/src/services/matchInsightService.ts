@@ -1,4 +1,5 @@
 export type MatchInsightInput = {
+  jobOrderId: string;
   jobOrder: {
     jobTitle: string;
     requiredSkills: Array<{ name: string }>;
@@ -24,6 +25,50 @@ const MODEL = process.env.GROQ_MODEL?.trim() || 'openai/gpt-oss-20b';
 // Cap below Groq free-tier TPM (8k) so one insights call still fits with the prompt.
 const MAX_TOKENS = Number(process.env.GROQ_MAX_TOKENS) || 4000;
 const TIMEOUT_MS = 25000;
+const CACHE_TTL_MS = 30 * 60 * 1000;
+
+type CacheEntry = {
+  insights: MatchInsight[];
+  fingerprint: string;
+  cachedAt: number;
+};
+
+const insightCache = new Map<string, CacheEntry>();
+
+function matchFingerprint(
+  matches: MatchInsightInput['matches'],
+): string {
+  return matches
+    .map((m) => `${m.candidateId}:${m.matchCount}`)
+    .sort()
+    .join('|');
+}
+
+function getCachedInsights(
+  jobOrderId: string,
+  fingerprint: string,
+): MatchInsight[] | null {
+  const entry = insightCache.get(jobOrderId);
+  if (!entry) return null;
+  if (entry.fingerprint !== fingerprint) return null;
+  if (Date.now() - entry.cachedAt > CACHE_TTL_MS) {
+    insightCache.delete(jobOrderId);
+    return null;
+  }
+  return entry.insights;
+}
+
+function setCachedInsights(
+  jobOrderId: string,
+  fingerprint: string,
+  insights: MatchInsight[],
+) {
+  insightCache.set(jobOrderId, {
+    insights,
+    fingerprint,
+    cachedAt: Date.now(),
+  });
+}
 
 function buildPrompt(input: MatchInsightInput): string {
   const required = input.jobOrder.requiredSkills.map((s) => s.name).join(', ') || 'none listed';
@@ -121,8 +166,17 @@ export const matchInsightService = {
   async getMatchInsights(input: MatchInsightInput): Promise<MatchInsight[]> {
     if (!input.matches.length) return [];
 
+    const fingerprint = matchFingerprint(input.matches);
+    const cached = getCachedInsights(input.jobOrderId, fingerprint);
+    if (cached) {
+      console.log(`[matchInsight] cache hit jobOrderId=${input.jobOrderId}`);
+      return cached;
+    }
+
     const apiKey = process.env.GROQ_API_KEY?.trim();
     if (!apiKey) return [];
+
+    console.log(`[matchInsight] cache miss — calling Groq jobOrderId=${input.jobOrderId}`);
 
     const validIds = new Set(input.matches.map((m) => m.candidateId));
     const controller = new AbortController();
@@ -171,7 +225,9 @@ export const matchInsightService = {
 
       try {
         const parsed = extractJson(content);
-        return normalizeInsights(parsed, validIds);
+        const insights = normalizeInsights(parsed, validIds);
+        setCachedInsights(input.jobOrderId, fingerprint, insights);
+        return insights;
       } catch (err) {
         console.warn(
           `[matchInsight] JSON parse failed (finish=${data.choices?.[0]?.finish_reason}, len=${content.length}):`,

@@ -195,6 +195,7 @@ export function ListPage<T extends { id: string }>({
   const dispatch = useAppDispatch();
   const tenants = useAppSelector((s) => s.tenants.items);
   const selectedTenantId = useAppSelector((s) => s.tenants.selectedTenantId);
+  const activeTenants = tenants.filter((t) => t.status === 'Active');
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
@@ -213,7 +214,7 @@ export function ListPage<T extends { id: string }>({
               <option value="" disabled>
                 Select tenant
               </option>
-              {tenants.map((t) => (
+              {activeTenants.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>

@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { jobOrderController } from '../controllers/jobOrderController.js';
 import { requireTenant } from '../middleware/requireTenant.js';
+import { requireActiveTenantForWrites } from '../middleware/requireActiveTenantForWrites.js';
 
 const router = Router();
 
 router.use(requireTenant);
+router.use(requireActiveTenantForWrites);
 
 router.get('/', jobOrderController.list);
 router.post('/', jobOrderController.create);

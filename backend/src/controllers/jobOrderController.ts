@@ -70,6 +70,7 @@ export const jobOrderController = {
       const matches = await jobOrderService.getMatches(tenantId, jobOrderId);
 
       const insights = await matchInsightService.getMatchInsights({
+        jobOrderId,
         jobOrder: {
           jobTitle: job.jobTitle,
           requiredSkills: job.requiredSkills,

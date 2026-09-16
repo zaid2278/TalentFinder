@@ -62,9 +62,16 @@ const tenantSlice = createSlice({
         state.items = action.payload.items;
         state.total = action.payload.total;
         state.page = action.payload.page;
-        if (!state.selectedTenantId && action.payload.items[0]) {
-          state.selectedTenantId = action.payload.items[0].id;
-          localStorage.setItem(SELECTED_KEY, action.payload.items[0].id);
+
+        const activeItems = action.payload.items.filter((t) => t.status === 'Active');
+        const selectedStillActive = activeItems.some((t) => t.id === state.selectedTenantId);
+
+        if (state.selectedTenantId && !selectedStillActive) {
+          state.selectedTenantId = null;
+          localStorage.removeItem(SELECTED_KEY);
+        } else if (!state.selectedTenantId && activeItems[0]) {
+          state.selectedTenantId = activeItems[0].id;
+          localStorage.setItem(SELECTED_KEY, activeItems[0].id);
         }
       })
       .addCase(fetchTenants.rejected, (state, action) => {
@@ -80,12 +87,19 @@ const tenantSlice = createSlice({
       .addCase(updateTenantStatus.fulfilled, (state, action) => {
         const idx = state.items.findIndex((t) => t.id === action.payload.id);
         if (idx >= 0) state.items[idx] = action.payload;
+        if (
+          state.selectedTenantId === action.payload.id &&
+          action.payload.status !== 'Active'
+        ) {
+          state.selectedTenantId = null;
+          localStorage.removeItem(SELECTED_KEY);
+        }
       })
       .addCase(deleteTenant.fulfilled, (state, action) => {
         state.items = state.items.filter((t) => t.id !== action.payload);
         state.total = Math.max(0, state.total - 1);
         if (state.selectedTenantId === action.payload) {
-          const next = state.items[0]?.id ?? null;
+          const next = state.items.find((t) => t.status === 'Active')?.id ?? null;
           state.selectedTenantId = next;
           if (next) localStorage.setItem(SELECTED_KEY, next);
           else localStorage.removeItem(SELECTED_KEY);
