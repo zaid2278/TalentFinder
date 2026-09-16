@@ -5,6 +5,7 @@ import { submissionRepository } from '../repositories/submissionRepository.js';
 import { skillRepository } from '../repositories/skillRepository.js';
 import { parsePagination, parseSort } from '../lib/query.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { rankCandidatesBySkillMatch } from './rankCandidatesBySkillMatch.js';
 
 const createJobOrderSchema = z.object({
   jobTitle: z.string().trim().min(1, 'jobTitle is required'),
@@ -132,31 +133,8 @@ export const jobOrderService = {
     const requiredSkillIds = await jobOrderRepository.getRequiredSkillIds(tenantId, jobOrderId);
     if (!requiredSkillIds) throw new AppError('Job order not found', 404);
 
-    const requiredSet = new Set(requiredSkillIds);
     const candidates = await candidateRepository.findAllWithSkills(tenantId);
-
-    const matches = candidates
-      .map((candidate) => {
-        const matchedSkills = candidate.skills
-          .filter((cs) => requiredSet.has(cs.skillId))
-          .map((cs) => ({ id: cs.skill.id, name: cs.skill.name }));
-
-        return {
-          candidate: {
-            id: candidate.id,
-            fullName: candidate.fullName,
-            location: candidate.location,
-            experienceYears: candidate.experienceYears,
-            skills: candidate.skills.map((s) => ({ id: s.skill.id, name: s.skill.name })),
-          },
-          matchedSkills,
-          matchCount: matchedSkills.length,
-        };
-      })
-      .filter((m) => m.matchCount > 0)
-      .sort((a, b) => b.matchCount - a.matchCount);
-
-    return matches;
+    return rankCandidatesBySkillMatch(candidates, requiredSkillIds);
   },
 
   async shortlist(tenantId: string, jobOrderId: string, body: unknown) {
